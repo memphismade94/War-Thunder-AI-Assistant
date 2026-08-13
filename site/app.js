@@ -1,4 +1,4 @@
-const WORKER_URL = "REPLACE_WITH_CLOUDFLARE_WORKER_URL";
+const WORKER_URL = "https://warthog-ground-rb.memphismade94.workers.dev";
 const ids = ["nation","vehicle","br","map","position","enemy","range","ammo","situation"];
 const $ = id => document.getElementById(id);
 const saved = JSON.parse(localStorage.getItem("warthogContext") || "{}");
@@ -6,11 +6,9 @@ ids.forEach(id => { if (saved[id]) $(id).value = saved[id]; $(id).addEventListen
 function saveContext(){ const ctx={}; ids.forEach(id=>ctx[id]=$(id).value); localStorage.setItem("warthogContext",JSON.stringify(ctx)); }
 function context(){ const c={}; ids.forEach(id=>c[id]=$(id).value.trim()); return c; }
 async function status(){
-  if(WORKER_URL.startsWith("REPLACE")){ $("status").textContent="Backend not configured yet."; return; }
   try{ const r=await fetch(WORKER_URL+"/status"); const j=await r.json(); $("status").textContent=`Knowledge: ${j.status||"unknown"} • ${j.updated_at||"not yet generated"}`; }catch(e){$("status").textContent="Backend unavailable.";}
 }
 async function ask(question, audioBase64=null, mimeType=null){
-  if(WORKER_URL.startsWith("REPLACE")){ $("answer").textContent="The app is installed, but its Cloudflare Worker URL has not been configured yet."; return; }
   $("answer").textContent="Thinking…"; $("sources").textContent="";
   try{
     const body={question,context:context()};
@@ -24,7 +22,7 @@ async function ask(question, audioBase64=null, mimeType=null){
 $("askBtn").onclick=()=>ask($("situation").value.trim()||"Give me the best tactical recommendation for my current situation.");
 document.querySelectorAll(".quick button").forEach(b=>b.onclick=()=>ask(b.dataset.q));
 $("speakBtn").onclick=()=>{const t=$("answer").textContent;if(t&&"speechSynthesis" in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(t));}};
-$("updateBtn").onclick=async()=>{if(WORKER_URL.startsWith("REPLACE")){status();return;} try{const r=await fetch(WORKER_URL+"/refresh",{method:"POST"});const j=await r.json();$("status").textContent=j.message||"Refresh requested.";}catch(e){$("status").textContent="Could not request refresh.";}};
+$("updateBtn").onclick=async()=>{ $("status").textContent="Checking for knowledge updates…"; try{const r=await fetch(WORKER_URL+"/refresh",{method:"POST"});const j=await r.json();$("status").textContent=j.message||"Refresh requested.";}catch(e){$("status").textContent="Could not request refresh.";}};
 let recorder=null,chunks=[];
 $("talkBtn").onpointerdown=async()=>{
   try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});chunks=[];recorder=new MediaRecorder(stream);recorder.ondataavailable=e=>chunks.push(e.data);recorder.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());const blob=new Blob(chunks,{type:recorder.mimeType||"audio/webm"});const reader=new FileReader();reader.onloadend=()=>ask("Answer the spoken question and use the provided match context.",reader.result.split(",")[1],blob.type);reader.readAsDataURL(blob);};recorder.start();$("talkBtn").classList.add("recording");$("talkBtn").textContent="Release to Send";}catch(e){$("answer").textContent="Microphone access failed: "+e.message;}};
