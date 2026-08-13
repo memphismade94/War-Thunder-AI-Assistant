@@ -1,6 +1,13 @@
 name: Update War Thunder Knowledge Base
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'data/sources.json'
+      - 'tests/**'
+      - '.github/workflows/update-kb.yml'
   workflow_dispatch:
   schedule:
     - cron: '17 */6 * * *'
@@ -40,6 +47,7 @@ jobs:
           assert m['pages'] == len({c['source'] for c in kb['chunks']})
           assert m['chunks'] == len(kb['chunks'])
           assert m['pages'] > 0, 'Crawler produced no pages'
+          assert m['failed_pages'] < m['pages'], 'Too many crawl failures; refusing to publish'
           print(m)
           PY
 
