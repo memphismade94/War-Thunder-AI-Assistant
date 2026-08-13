@@ -53,7 +53,7 @@ async function callGemini(env,body,hits){
   if(!env.GEMINI_API_KEY)throw new Error('GEMINI_API_KEY is not configured on the Worker.');
   const built=buildInput(body,hits);const input=[{type:'text',text:`MATCH CONTEXT:\n${built.contextText}\n\nPLAYER QUESTION:\n${built.question}\n\nRETRIEVED OFFICIAL KNOWLEDGE:\n${built.evidence}\n\nAnswer as Warthog. Put the action first. Use only supported facts and label uncertainty.`}];
   if(body.audio_base64){const mime=(body.audio_mime_type||'audio/mp3').split(';')[0].toLowerCase();const allowed=['audio/wav','audio/mp3','audio/aiff','audio/aac','audio/ogg','audio/flac'];if(!allowed.includes(mime))throw new Error(`Unsupported audio type: ${mime}. Use WAV, MP3, AIFF, AAC, OGG Vorbis, or FLAC.`);input.push({type:'audio',data:body.audio_base64,mime_type:mime});}
-  const r=await fetch('https://generativelanguage.googleapis.com/v1/interactions',{method:'POST',headers:{'x-goog-api-key':env.GEMINI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,system_instruction:SYSTEM_PROMPT,input,generation_config:{max_output_tokens:600,thinking_level:'low'}})});
+  const r=await fetch('https://generativelanguage.googleapis.com/v1/interactions',{method:'POST',headers:{'x-goog-api-key':env.GEMINI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,store:false,system_instruction:SYSTEM_PROMPT,input,generation_config:{max_output_tokens:600,thinking_level:'low'}})});
   const j=await r.json();if(!r.ok)throw new Error(j?.error?.message||'Gemini request failed');return j.output_text||j?.outputs?.filter(x=>x.type==='text').map(x=>x.text||'').join('')||'No answer returned.';
 }
 export default {async fetch(req,env){
@@ -62,7 +62,7 @@ export default {async fetch(req,env){
     if(u.pathname==='/health')return json({ok:true,model:MODEL,audio_input:true,max_request_mb:MAX_REQUEST_BYTES/1024/1024,refresh_enabled:Boolean(env.REFRESH_SECRET)});
     if(u.pathname==='/status'){const base=env.PUBLIC_MANIFEST_URL;if(!base)return json({status:'not_configured'});const r=await fetch(base,{cf:{cacheTtl:60}});if(!r.ok)return json({status:'unavailable'});return json(await r.json());}
     if(u.pathname==='/refresh'&&req.method==='POST'){const result=await githubRefresh(env,req);return json({ok:result.ok,message:result.message},result.status||200);}
-    if(u.pathname==='/chat'&&req.method==='POST'){const body=await req.json();let kb={chunks:[]};if(env.PUBLIC_KB_URL){const r=await fetch(env.PUBLIC_KB_URL,{cf:{cacheTtl:300}});if(r.ok)kb=await r.json();}const hits=retrieval(kb,body.question||'spoken question',body.context||{});const sources=hits.map(x=>({title:x.title,url:x.source}));const answer=await callGemini(env,body,hits);return json({answer,sources,knowledge_hits:hits.length});}
+    if(u.pathname==='/chat'&&req.method==='POST'){const body=await req.json();let kb={chunks:[]};if(env.PUBLIC_KB_URL){const r=await fetch(env.PUBLIC_KB_URL,{cf:{cacheTtl:300}});if(r.ok)kb=await r.json();}const hits=retrieval(kb,body.question||'spoken question',body.context||{});const unique=new Map();for(const x of hits)unique.set(x.source,{title:x.title,url:x.source});const sources=[...unique.values()].slice(0,6);const answer=await callGemini(env,body,hits);return json({answer,sources,knowledge_hits:hits.length});}
     return json({error:'Not found'},404);
   }catch(e){return json({error:e.message||String(e)},500)}
 }};
