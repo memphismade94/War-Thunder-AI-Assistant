@@ -41,20 +41,26 @@ jobs:
         env:
           WT_MAX_PAGES: '500'
           WT_DELAY_SECONDS: '1.25'
+          WT_MAX_DOCUMENT_CHARS: '30000'
+          WT_CHUNK_SIZE: '5000'
+          WT_CHUNK_OVERLAP: '500'
         run: python scripts/scrape_wt.py
 
       - name: Validate generated knowledge base
         run: |
           python - <<'PY'
           import json
+          from pathlib import Path
           with open('site/manifest.json', encoding='utf-8') as f: m=json.load(f)
           with open('site/kb.json', encoding='utf-8') as f: kb=json.load(f)
-          assert m['schema_version'] == 2
+          assert m['schema_version'] == 3
           assert m['pages'] == len({c['source'] for c in kb['chunks']})
           assert m['chunks'] == len(kb['chunks'])
           assert m['pages'] > 0, 'Crawler produced no pages'
           assert m['failed_pages'] < m['pages'], 'Too many crawl failures; refusing to publish'
-          print(m)
+          size = Path('site/kb.json').stat().st_size
+          assert size < 50 * 1024 * 1024, f'Knowledge snapshot is too large: {size} bytes'
+          print({**m, 'kb_bytes': size})
           PY
 
       - name: Commit knowledge changes
