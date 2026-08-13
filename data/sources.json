@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "source_policy": "official-first",
+  "sources": [
+    {"url": "https://wiki.warthunder.com/gamemode/realistic_battles", "category": "mechanics", "priority": 100},
+    {"url": "https://wiki.warthunder.com/ground", "category": "vehicles", "priority": 100},
+    {"url": "https://wiki.warthunder.com/armor", "category": "armor", "priority": 100},
+    {"url": "https://wiki.warthunder.com/ammunition", "category": "ammunition", "priority": 100},
+    {"url": "https://wiki.warthunder.com/ground/terrain", "category": "terrain", "priority": 90},
+    {"url": "https://wiki.warthunder.com/tags_list", "category": "index", "priority": 80}
+  ]
+}
