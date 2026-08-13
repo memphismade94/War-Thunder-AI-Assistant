@@ -14,9 +14,7 @@ from urllib.request import Request, urlopen
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "site")
 SOURCES = os.path.join(os.path.dirname(__file__), "..", "data", "sources.json")
-USER_AGENT = "Warthog-Ground-RB-KnowledgeBot/0.4 (official-source research; respectful rate limit)"
-# Minimums keep the scheduled workflow from silently reverting to the old
-# 500-page/30k-character crawl while still allowing larger future runs.
+USER_AGENT = "Warthog-Ground-RB-KnowledgeBot/0.5 (official-source research; respectful rate limit)"
 MAX_PAGES = max(int(os.getenv("WT_MAX_PAGES", "2000")), 2000)
 DELAY = min(float(os.getenv("WT_DELAY_SECONDS", "0.5")), 0.5)
 MAX_DOCUMENT_CHARS = min(int(os.getenv("WT_MAX_DOCUMENT_CHARS", "14000")), 14000)
@@ -73,14 +71,21 @@ def classify(url, fallback):
     return fallback
 
 def chunk(text, size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
-    if len(text)<=size: return [text]
-    out=[]; start=0
-    while start<len(text):
-        end=min(len(text),start+size)
-        if end<len(text):
-            cut=max(text.rfind(".",start,end),text.rfind("!",start,end),text.rfind("?",start,end))
-            if cut>start+1200: end=cut+1
-        out.append(text[start:end].strip()); start=max(end-overlap,start+1)
+    """Split text into bounded overlapping chunks without duplicating the tail."""
+    if len(text) <= size:
+        return [text]
+    out=[]
+    start=0
+    while start < len(text):
+        end=min(len(text), start + size)
+        if end < len(text):
+            cut=max(text.rfind(".", start, end), text.rfind("!", start, end), text.rfind("?", start, end))
+            if cut > start + 1200:
+                end=cut + 1
+        out.append(text[start:end].strip())
+        if end >= len(text):
+            break
+        start=max(end-overlap, start+1)
     return [x for x in out if x]
 
 def priority_for(url, parent_priority):
@@ -106,12 +111,8 @@ def main():
         except Exception as exc:
             failures+=1; print(f"WARN {url}: {exc}"); time.sleep(DELAY); continue
         p=TextParser(); p.feed(html)
-        text=clean(" ".join(p.parts))
-        text=text[:MAX_DOCUMENT_CHARS]
+        text=clean(" ".join(p.parts))[:MAX_DOCUMENT_CHARS]
         title=clean(p.title) or url
-        if "/unit/" in url:
-            h=re.search(r"Ground Vehicles\s+([^|]{2,100}?)(?:\s+I{1,3}|\s+IV|\s+V|\s+VI|\s+VII|\s+VIII|\s+Rank)",text)
-            if h: title=clean(h.group(1))
         cat=classify(url,category)
         if len(text)>=160:
             docs.append({"url":url,"title":title[:180],"category":cat,"priority":priority,"text":text,"sha256":hashlib.sha256(text.encode()).hexdigest()})
@@ -127,7 +128,7 @@ def main():
         for i,t in enumerate(chunk(d["text"])):
             chunks.append({"id":hashlib.sha1(f'{d["url"]}#{i}'.encode()).hexdigest(),"source":d["url"],"title":d["title"],"category":d["category"],"priority":d["priority"],"text":t})
     os.makedirs(OUT,exist_ok=True)
-    manifest={"schema_version":4,"generated_at":datetime.now(timezone.utc).isoformat(),"pages":len(docs),"chunks":len(chunks),"failed_pages":failures,"sources_policy":"official-first","crawler_version":"0.4","max_document_chars":MAX_DOCUMENT_CHARS,"chunk_size":CHUNK_SIZE,"max_pages":MAX_PAGES}
+    manifest={"schema_version":4,"generated_at":datetime.now(timezone.utc).isoformat(),"pages":len(docs),"chunks":len(chunks),"failed_pages":failures,"sources_policy":"official-first","crawler_version":"0.5","max_document_chars":MAX_DOCUMENT_CHARS,"chunk_size":CHUNK_SIZE,"chunk_overlap":CHUNK_OVERLAP,"max_pages":MAX_PAGES}
     with open(os.path.join(OUT,"kb.json"),"w",encoding="utf-8") as f: json.dump({"manifest":manifest,"chunks":chunks},f,ensure_ascii=False,separators=(",",":"))
     with open(os.path.join(OUT,"manifest.json"),"w",encoding="utf-8") as f: json.dump(manifest,f,indent=2)
     print(json.dumps(manifest,indent=2))
