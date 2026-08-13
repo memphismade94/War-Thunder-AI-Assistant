@@ -1,5 +1,5 @@
 name = "warthog-ground-rb"
-main = "src/index.js"
+main = "src/warthog.js"
 compatibility_date = "2026-08-13"
 
 [vars]
