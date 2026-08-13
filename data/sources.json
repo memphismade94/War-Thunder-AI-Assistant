@@ -1,9 +1,10 @@
 {
-  "version": 3,
+  "version": 4,
   "source_policy": "official-first",
   "sources": [
     {"url": "https://wiki.warthunder.com/gamemode/realistic_battles", "category": "mechanics", "priority": 100},
     {"url": "https://wiki.warthunder.com/ground", "category": "vehicles", "priority": 100},
+    {"url": "https://wiki.warthunder.com/collections", "category": "vehicle_index", "priority": 95},
     {"url": "https://wiki.warthunder.com/mechanics/242-armour", "category": "armor", "priority": 100},
     {"url": "https://wiki.warthunder.com/weapon/2544-tank-ammunition", "category": "ammunition", "priority": 100},
     {"url": "https://wiki.warthunder.com/tags_list", "category": "index", "priority": 80}
