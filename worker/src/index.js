@@ -1,4 +1,6 @@
 const MODEL = 'gemini-3.6-flash';
+const MAX_REQUEST_BYTES = 8 * 1024 * 1024;
+const MAX_EVIDENCE_CHARS = 36000;
 const SYSTEM_PROMPT = `You are WARTHOG, an elite War Thunder Ground Realistic Battles tactical assistant and protégé tank commander.
 
 MISSION: Give the player the best actionable decision supported by retrieved current official War Thunder knowledge and the player's supplied match context. Survival and immediate action come first.
@@ -58,9 +60,16 @@ function retrieval(kb,question,context){
 
 function buildInput(body,hits){
   const context=body.context||{};
-  const contextText=Object.entries(context).filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`).join('\n')||'No structured match context supplied.';
-  const evidence=hits.map((x,i)=>`[${i+1}] ${x.title}\n${x.text}\nSOURCE: ${x.source}`).join('\n\n');
-  const question=body.question||'Answer the spoken question using the supplied audio.';
+  const contextText=Object.entries(context).filter(([,v])=>v).map(([k,v])=>`${k}: ${String(v).slice(0,500)}`).join('\n')||'No structured match context supplied.';
+  let used=0;
+  const evidence=hits.map((x,i)=>{
+    const text=String(x.text||'').slice(0,6000);
+    const block=`[${i+1}] ${x.title}\n${text}\nSOURCE: ${x.source}`;
+    if(used+block.length>MAX_EVIDENCE_CHARS) return '';
+    used+=block.length;
+    return block;
+  }).filter(Boolean).join('\n\n');
+  const question=String(body.question||'Answer the spoken question using the supplied audio.').slice(0,3000);
   return {contextText,evidence,question};
 }
 
@@ -69,8 +78,8 @@ async function callGemini(env,body,hits){
   const built=buildInput(body,hits);
   const input=[{type:'text',text:`MATCH CONTEXT:\n${built.contextText}\n\nPLAYER QUESTION:\n${built.question}\n\nRETRIEVED OFFICIAL KNOWLEDGE:\n${built.evidence}\n\nAnswer as Warthog. Put the action first. Use only supported facts and label uncertainty.`}];
   if(body.audio_base64){
-    const mime=(body.audio_mime_type||'audio/webm').split(';')[0];
-    const allowed=['audio/wav','audio/mp3','audio/aiff','audio/aac','audio/ogg','audio/flac','audio/mpeg','audio/m4a','audio/l16','audio/opus','audio/alaw','audio/mulaw'];
+    const mime=(body.audio_mime_type||'audio/webm').split(';')[0].toLowerCase();
+    const allowed=['audio/wav','audio/mp3','audio/aiff','audio/aac','audio/ogg','audio/flac','audio/mpeg','audio/m4a','audio/l16','audio/opus','audio/alaw','audio/mulaw','audio/webm'];
     if(!allowed.includes(mime)) throw new Error(`Unsupported audio type: ${mime}`);
     input.push({type:'audio',data:body.audio_base64,mime_type:mime});
   }
@@ -82,9 +91,13 @@ async function callGemini(env,body,hits){
 
 export default {async fetch(req,env){
   if(req.method==='OPTIONS') return json({ok:true});
+  if(req.method==='POST'){
+    const length=Number(req.headers.get('content-length')||0);
+    if(length && length>MAX_REQUEST_BYTES) return json({error:'Request is too large.'},413);
+  }
   const u=new URL(req.url);
   try{
-    if(u.pathname==='/health') return json({ok:true,model:MODEL,audio_input:true});
+    if(u.pathname==='/health') return json({ok:true,model:MODEL,audio_input:true,max_request_mb:MAX_REQUEST_BYTES/1024/1024});
     if(u.pathname==='/status'){
       const base=env.PUBLIC_MANIFEST_URL;
       if(!base) return json({status:'not_configured'});
