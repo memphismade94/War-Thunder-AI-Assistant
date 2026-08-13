@@ -1,9 +1,13 @@
 {
-  "schema_version": 2,
-  "generated_at": "2026-08-13T09:22:16.887254+00:00",
-  "pages": 499,
-  "chunks": 111955,
-  "failed_pages": 1,
+  "schema_version": 4,
+  "generated_at": "2026-08-13T22:01:28.460817+00:00",
+  "pages": 2000,
+  "chunks": 3374,
+  "failed_pages": 0,
   "sources_policy": "official-first",
-  "crawler_version": "0.2"
+  "crawler_version": "0.5",
+  "max_document_chars": 14000,
+  "chunk_size": 3500,
+  "chunk_overlap": 350,
+  "max_pages": 2000
 }
