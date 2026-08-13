@@ -1,0 +1,15 @@
+name = "warthog-ground-rb-ai"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+[vars]
+GITHUB_OWNER = "memphismade94"
+GITHUB_REPO = "War-Thunder-AI-Assistant"
+GITHUB_BRANCH = "main"
+GITHUB_WORKFLOW = "update-kb.yml"
+PUBLIC_KB_URL = "https://YOUR_GITHUB_PAGES_HOST/site/kb.json"
+PUBLIC_MANIFEST_URL = "https://YOUR_GITHUB_PAGES_HOST/site/manifest.json"
+
+# Set these with `wrangler secret put`, never commit them:
+# GEMINI_API_KEY
+# GITHUB_TOKEN
