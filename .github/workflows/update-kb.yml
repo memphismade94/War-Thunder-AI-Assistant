@@ -1,0 +1,39 @@
+name: Update War Thunder Knowledge Base
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Crawl official War Thunder Wiki
+        env:
+          WT_MAX_PAGES: '150'
+          WT_DELAY_SECONDS: '1.25'
+        run: python scripts/scrape_wt.py
+
+      - name: Commit knowledge changes
+        run: |
+          git config user.name 'warthog-kb-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add site/kb.json site/manifest.json
+          if git diff --cached --quiet; then
+            echo 'No knowledge changes detected.'
+          else
+            git commit -m 'Refresh official War Thunder knowledge base'
+            git push
+          fi
