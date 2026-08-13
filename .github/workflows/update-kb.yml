@@ -11,6 +11,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,11 +21,27 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Validate crawler
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
       - name: Crawl official War Thunder Wiki
         env:
-          WT_MAX_PAGES: '150'
+          WT_MAX_PAGES: '500'
           WT_DELAY_SECONDS: '1.25'
         run: python scripts/scrape_wt.py
+
+      - name: Validate generated knowledge base
+        run: |
+          python - <<'PY'
+          import json
+          with open('site/manifest.json', encoding='utf-8') as f: m=json.load(f)
+          with open('site/kb.json', encoding='utf-8') as f: kb=json.load(f)
+          assert m['schema_version'] == 2
+          assert m['pages'] == len({c['source'] for c in kb['chunks']})
+          assert m['chunks'] == len(kb['chunks'])
+          assert m['pages'] > 0, 'Crawler produced no pages'
+          print(m)
+          PY
 
       - name: Commit knowledge changes
         run: |
