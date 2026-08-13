@@ -39,87 +39,30 @@ async function githubRefresh(env,request){
   return {ok:r.ok,message:r.ok?'Knowledge refresh requested.':'GitHub refused the refresh request.',status:r.status};
 }
 
-function termsFor(question,context){
-  return (question+' '+Object.values(context||{}).join(' ')).toLowerCase().split(/[^a-z0-9.+-]+/).filter(x=>x.length>2);
-}
+function termsFor(question,context){return (question+' '+Object.values(context||{}).join(' ')).toLowerCase().split(/[^a-z0-9.+-]+/).filter(x=>x.length>2);}
 function retrieval(kb,question,context){
-  const terms=termsFor(question,context);
-  const vehicle=(context?.vehicle||'').toLowerCase();
-  const enemy=(context?.enemy||'').toLowerCase();
-  const map=(context?.map||'').toLowerCase();
-  return (kb?.chunks||[]).map(c=>{
-    const hay=(c.title+' '+c.category+' '+c.text).toLowerCase();
-    let score=(c.priority||0)/10;
-    for(const t of terms){ if(hay.includes(t)) score+=1; }
-    if(vehicle && hay.includes(vehicle)) score+=18;
-    if(enemy && hay.includes(enemy)) score+=18;
-    if(map && hay.includes(map)) score+=8;
-    if((question||'').toLowerCase().match(/armor|armour|penetrat|pen|weak|shoot|aim/)&&/armor|armour|ammunition|unit\//.test(c.category+' '+c.source)) score+=4;
-    if((question||'').toLowerCase().match(/ammo|round|shell|reload/)&&/ammunition|unit\//.test(c.category+' '+c.source)) score+=4;
-    if((question||'').toLowerCase().match(/map|position|push|retreat|flank|lane|capture/)&&/location|map|ground|gamemode/.test(c.category+' '+c.source)) score+=4;
-    return {...c,score};
-  }).sort((a,b)=>b.score-a.score).slice(0,10);
+  const terms=termsFor(question,context); const vehicle=(context?.vehicle||'').toLowerCase(); const enemy=(context?.enemy||'').toLowerCase(); const map=(context?.map||'').toLowerCase();
+  return (kb?.chunks||[]).map(c=>{const hay=(c.title+' '+c.category+' '+c.text).toLowerCase();let score=(c.priority||0)/10;for(const t of terms){if(hay.includes(t))score+=1;}if(vehicle&&hay.includes(vehicle))score+=18;if(enemy&&hay.includes(enemy))score+=18;if(map&&hay.includes(map))score+=8;if((question||'').toLowerCase().match(/armor|armour|penetrat|pen|weak|shoot|aim/)&&/armor|armour|ammunition|unit\//.test(c.category+' '+c.source))score+=4;if((question||'').toLowerCase().match(/ammo|round|shell|reload/)&&/ammunition|unit\//.test(c.category+' '+c.source))score+=4;if((question||'').toLowerCase().match(/map|position|push|retreat|flank|lane|capture/)&&/location|map|ground|gamemode/.test(c.category+' '+c.source))score+=4;return {...c,score};}).sort((a,b)=>b.score-a.score).slice(0,10);
 }
-
 function buildInput(body,hits){
-  const context=body.context||{};
-  const contextText=Object.entries(context).filter(([,v])=>v).map(([k,v])=>`${k}: ${String(v).slice(0,500)}`).join('\n')||'No structured match context supplied.';
-  let used=0;
-  const evidence=hits.map((x,i)=>{
-    const text=String(x.text||'').slice(0,6000);
-    const block=`[${i+1}] ${x.title}\n${text}\nSOURCE: ${x.source}`;
-    if(used+block.length>MAX_EVIDENCE_CHARS) return '';
-    used+=block.length;
-    return block;
-  }).filter(Boolean).join('\n\n');
-  const question=String(body.question||'Answer the spoken question using the supplied audio.').slice(0,3000);
-  return {contextText,evidence,question};
+  const context=body.context||{};const contextText=Object.entries(context).filter(([,v])=>v).map(([k,v])=>`${k}: ${String(v).slice(0,500)}`).join('\n')||'No structured match context supplied.';let used=0;
+  const evidence=hits.map((x,i)=>{const text=String(x.text||'').slice(0,6000);const block=`[${i+1}] ${x.title}\n${text}\nSOURCE: ${x.source}`;if(used+block.length>MAX_EVIDENCE_CHARS)return '';used+=block.length;return block;}).filter(Boolean).join('\n\n');
+  const question=String(body.question||'Answer the spoken question using the supplied audio.').slice(0,3000);return {contextText,evidence,question};
 }
-
 async function callGemini(env,body,hits){
-  if(!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured on the Worker.');
-  const built=buildInput(body,hits);
-  const input=[{type:'text',text:`MATCH CONTEXT:\n${built.contextText}\n\nPLAYER QUESTION:\n${built.question}\n\nRETRIEVED OFFICIAL KNOWLEDGE:\n${built.evidence}\n\nAnswer as Warthog. Put the action first. Use only supported facts and label uncertainty.`}];
-  if(body.audio_base64){
-    const mime=(body.audio_mime_type||'audio/webm').split(';')[0].toLowerCase();
-    const allowed=['audio/wav','audio/mp3','audio/aiff','audio/aac','audio/ogg','audio/flac','audio/mpeg','audio/m4a','audio/l16','audio/opus','audio/alaw','audio/mulaw','audio/webm'];
-    if(!allowed.includes(mime)) throw new Error(`Unsupported audio type: ${mime}`);
-    input.push({type:'audio',data:body.audio_base64,mime_type:mime});
-  }
-  const r=await fetch('https://generativelanguage.googleapis.com/v1/interactions',{method:'POST',headers:{'x-goog-api-key':env.GEMINI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,system_instruction:SYSTEM_PROMPT,input})});
-  const j=await r.json();
-  if(!r.ok) throw new Error(j?.error?.message||'Gemini request failed');
-  return j.output_text || j?.outputs?.filter(x=>x.type==='text').map(x=>x.text||'').join('') || 'No answer returned.';
+  if(!env.GEMINI_API_KEY)throw new Error('GEMINI_API_KEY is not configured on the Worker.');
+  const built=buildInput(body,hits);const input=[{type:'text',text:`MATCH CONTEXT:\n${built.contextText}\n\nPLAYER QUESTION:\n${built.question}\n\nRETRIEVED OFFICIAL KNOWLEDGE:\n${built.evidence}\n\nAnswer as Warthog. Put the action first. Use only supported facts and label uncertainty.`}];
+  if(body.audio_base64){const mime=(body.audio_mime_type||'audio/mp3').split(';')[0].toLowerCase();const allowed=['audio/wav','audio/mp3','audio/aiff','audio/aac','audio/ogg','audio/flac'];if(!allowed.includes(mime))throw new Error(`Unsupported audio type: ${mime}. Use WAV, MP3, AIFF, AAC, OGG Vorbis, or FLAC.`);input.push({type:'audio',data:body.audio_base64,mime_type:mime});}
+  const r=await fetch('https://generativelanguage.googleapis.com/v1/interactions',{method:'POST',headers:{'x-goog-api-key':env.GEMINI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,system_instruction:SYSTEM_PROMPT,input,generation_config:{max_output_tokens:600,thinking_level:'low'}})});
+  const j=await r.json();if(!r.ok)throw new Error(j?.error?.message||'Gemini request failed');return j.output_text||j?.outputs?.filter(x=>x.type==='text').map(x=>x.text||'').join('')||'No answer returned.';
 }
-
 export default {async fetch(req,env){
-  if(req.method==='OPTIONS') return json({ok:true});
-  if(req.method==='POST'){
-    const length=Number(req.headers.get('content-length')||0);
-    if(length && length>MAX_REQUEST_BYTES) return json({error:'Request is too large.'},413);
-  }
-  const u=new URL(req.url);
-  try{
-    if(u.pathname==='/health') return json({ok:true,model:MODEL,audio_input:true,max_request_mb:MAX_REQUEST_BYTES/1024/1024,refresh_enabled:Boolean(env.REFRESH_SECRET)});
-    if(u.pathname==='/status'){
-      const base=env.PUBLIC_MANIFEST_URL;
-      if(!base) return json({status:'not_configured'});
-      const r=await fetch(base,{cf:{cacheTtl:60}}); if(!r.ok) return json({status:'unavailable'});
-      return json(await r.json());
-    }
-    if(u.pathname==='/refresh' && req.method==='POST'){
-      const result=await githubRefresh(env,req);
-      return json({ok:result.ok,message:result.message},result.status||200);
-    }
-    if(u.pathname==='/chat' && req.method==='POST'){
-      const body=await req.json();
-      let kb={chunks:[]};
-      if(env.PUBLIC_KB_URL){const r=await fetch(env.PUBLIC_KB_URL,{cf:{cacheTtl:300}});if(r.ok) kb=await r.json();}
-      const hits=retrieval(kb,body.question||'spoken question',body.context||{});
-      const sources=hits.map(x=>({title:x.title,url:x.source}));
-      const answer=await callGemini(env,body,hits);
-      return json({answer,sources,knowledge_hits:hits.length});
-    }
+  if(req.method==='OPTIONS')return json({ok:true});if(req.method==='POST'){const length=Number(req.headers.get('content-length')||0);if(length&&length>MAX_REQUEST_BYTES)return json({error:'Request is too large.'},413);}
+  const u=new URL(req.url);try{
+    if(u.pathname==='/health')return json({ok:true,model:MODEL,audio_input:true,max_request_mb:MAX_REQUEST_BYTES/1024/1024,refresh_enabled:Boolean(env.REFRESH_SECRET)});
+    if(u.pathname==='/status'){const base=env.PUBLIC_MANIFEST_URL;if(!base)return json({status:'not_configured'});const r=await fetch(base,{cf:{cacheTtl:60}});if(!r.ok)return json({status:'unavailable'});return json(await r.json());}
+    if(u.pathname==='/refresh'&&req.method==='POST'){const result=await githubRefresh(env,req);return json({ok:result.ok,message:result.message},result.status||200);}
+    if(u.pathname==='/chat'&&req.method==='POST'){const body=await req.json();let kb={chunks:[]};if(env.PUBLIC_KB_URL){const r=await fetch(env.PUBLIC_KB_URL,{cf:{cacheTtl:300}});if(r.ok)kb=await r.json();}const hits=retrieval(kb,body.question||'spoken question',body.context||{});const sources=hits.map(x=>({title:x.title,url:x.source}));const answer=await callGemini(env,body,hits);return json({answer,sources,knowledge_hits:hits.length});}
     return json({error:'Not found'},404);
   }catch(e){return json({error:e.message||String(e)},500)}
 }};
