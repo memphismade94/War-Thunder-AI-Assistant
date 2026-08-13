@@ -1,9 +1,9 @@
 {
-  "name": "WARTHOG — War Thunder Ground RB AI",
-  "short_name": "WARTHOG",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#0b0f14",
-  "theme_color": "#111827",
-  "description": "Voice-first tactical assistant for War Thunder Ground Realistic Battles."
+  "schema_version": 2,
+  "generated_at": "2026-08-13T09:22:16.887254+00:00",
+  "pages": 499,
+  "chunks": 111955,
+  "failed_pages": 1,
+  "sources_policy": "official-first",
+  "crawler_version": "0.2"
 }
