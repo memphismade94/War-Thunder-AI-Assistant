@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <title>WARTHOG — Ground RB AI</title>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <div class="eyebrow">WAR THUNDER • GROUND REALISTIC</div>
+        <h1>WARTHOG</h1>
+        <p>Veteran tactical commander</p>
+      </div>
+      <button id="updateBtn" class="secondary">Check Updates</button>
+    </header>
+
+    <section class="status" id="status">Knowledge status: checking…</section>
+
+    <section class="card">
+      <h2>Match Context</h2>
+      <div class="grid">
+        <label>Nation<input id="nation" placeholder="USSR"></label>
+        <label>Vehicle<input id="vehicle" placeholder="T-80BVM"></label>
+        <label>BR<input id="br" placeholder="12.7"></label>
+        <label>Map<input id="map" placeholder="Poland"></label>
+        <label>Position<input id="position" placeholder="Hull-down near C"></label>
+        <label>Enemy<input id="enemy" placeholder="Leopard 2A7V"></label>
+        <label>Range<input id="range" placeholder="600 m"></label>
+        <label>Ammo<input id="ammo" placeholder="APFSDS"></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <label>Situation<textarea id="situation" rows="3" placeholder="What's happening right now?"></textarea></label>
+      <div class="actions">
+        <button id="talkBtn" class="talk">Hold to Talk</button>
+        <button id="askBtn">Ask Warthog</button>
+      </div>
+      <div class="quick">
+        <button data-q="Where should I aim?">Where do I aim?</button>
+        <button data-q="Can I penetrate this target?">Can I pen?</button>
+        <button data-q="Should I push or fall back?">Push or retreat?</button>
+        <button data-q="What is my biggest immediate threat?">Biggest threat?</button>
+      </div>
+    </section>
+
+    <section class="card answer-card">
+      <div class="answer-head"><h2>Warthog</h2><button id="speakBtn" class="secondary">Read Answer</button></div>
+      <pre id="answer">Ready.</pre>
+      <div id="sources" class="sources"></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
