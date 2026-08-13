@@ -1,0 +1,16 @@
+name = "warthog-ground-rb"
+main = "src/index.js"
+compatibility_date = "2026-08-13"
+
+[vars]
+PUBLIC_KB_URL = "https://memphismade94.github.io/War-Thunder-AI-Assistant/kb.json"
+PUBLIC_MANIFEST_URL = "https://memphismade94.github.io/War-Thunder-AI-Assistant/manifest.json"
+GITHUB_OWNER = "memphismade94"
+GITHUB_REPO = "War-Thunder-AI-Assistant"
+GITHUB_BRANCH = "main"
+GITHUB_WORKFLOW = "update-kb.yml"
+
+# Set secrets with:
+# npx wrangler secret put GEMINI_API_KEY
+# npx wrangler secret put GITHUB_TOKEN
+# Do not commit secrets to this file or the repository.
