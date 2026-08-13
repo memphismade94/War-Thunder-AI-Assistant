@@ -28,8 +28,11 @@ DECISION RULE: State the actionable answer first. If avoiding the engagement is 
 const CORS = {'access-control-allow-origin':'*','access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type'};
 function json(data,status=200){return new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json',...CORS}})}
 
-async function githubRefresh(env){
-  if(!env.GITHUB_TOKEN || !env.GITHUB_OWNER || !env.GITHUB_REPO) return {ok:false,message:'GitHub refresh is not configured.'};
+async function githubRefresh(env,request){
+  if(!env.REFRESH_SECRET) return {ok:false,message:'Knowledge refresh is disabled until REFRESH_SECRET is configured.',status:503};
+  const supplied=request.headers.get('x-warthog-refresh-secret');
+  if(!supplied || supplied!==env.REFRESH_SECRET) return {ok:false,message:'Unauthorized.',status:401};
+  if(!env.GITHUB_TOKEN || !env.GITHUB_OWNER || !env.GITHUB_REPO) return {ok:false,message:'GitHub refresh is not configured.',status:503};
   const branch=env.GITHUB_BRANCH||'main';
   const workflow=env.GITHUB_WORKFLOW||'update-kb.yml';
   const r=await fetch(`https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/actions/workflows/${workflow}/dispatches`,{method:'POST',headers:{'Authorization':`Bearer ${env.GITHUB_TOKEN}`,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},body:JSON.stringify({ref:branch})});
@@ -97,14 +100,17 @@ export default {async fetch(req,env){
   }
   const u=new URL(req.url);
   try{
-    if(u.pathname==='/health') return json({ok:true,model:MODEL,audio_input:true,max_request_mb:MAX_REQUEST_BYTES/1024/1024});
+    if(u.pathname==='/health') return json({ok:true,model:MODEL,audio_input:true,max_request_mb:MAX_REQUEST_BYTES/1024/1024,refresh_enabled:Boolean(env.REFRESH_SECRET)});
     if(u.pathname==='/status'){
       const base=env.PUBLIC_MANIFEST_URL;
       if(!base) return json({status:'not_configured'});
       const r=await fetch(base,{cf:{cacheTtl:60}}); if(!r.ok) return json({status:'unavailable'});
       return json(await r.json());
     }
-    if(u.pathname==='/refresh' && req.method==='POST') return json(await githubRefresh(env));
+    if(u.pathname==='/refresh' && req.method==='POST'){
+      const result=await githubRefresh(env,req);
+      return json({ok:result.ok,message:result.message},result.status||200);
+    }
     if(u.pathname==='/chat' && req.method==='POST'){
       const body=await req.json();
       let kb={chunks:[]};
