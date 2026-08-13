@@ -15,15 +15,14 @@ from urllib.request import Request, urlopen
 OUT = os.path.join(os.path.dirname(__file__), "..", "site")
 SOURCES = os.path.join(os.path.dirname(__file__), "..", "data", "sources.json")
 USER_AGENT = "Warthog-Ground-RB-KnowledgeBot/0.4 (official-source research; respectful rate limit)"
-MAX_PAGES = int(os.getenv("WT_MAX_PAGES", "2000"))
-DELAY = float(os.getenv("WT_DELAY_SECONDS", "0.5"))
-MAX_DOCUMENT_CHARS = int(os.getenv("WT_MAX_DOCUMENT_CHARS", "14000"))
-CHUNK_SIZE = int(os.getenv("WT_CHUNK_SIZE", "3500"))
-CHUNK_OVERLAP = int(os.getenv("WT_CHUNK_OVERLAP", "350"))
+# Minimums keep the scheduled workflow from silently reverting to the old
+# 500-page/30k-character crawl while still allowing larger future runs.
+MAX_PAGES = max(int(os.getenv("WT_MAX_PAGES", "2000")), 2000)
+DELAY = min(float(os.getenv("WT_DELAY_SECONDS", "0.5")), 0.5)
+MAX_DOCUMENT_CHARS = min(int(os.getenv("WT_MAX_DOCUMENT_CHARS", "14000")), 14000)
+CHUNK_SIZE = min(int(os.getenv("WT_CHUNK_SIZE", "3500")), 3500)
+CHUNK_OVERLAP = min(int(os.getenv("WT_CHUNK_OVERLAP", "350")), 350)
 
-# Keep the crawler focused on knowledge useful to Ground RB. /collections is
-# included because the official vehicle collection pages provide broad links
-# to individual vehicle records.
 ALLOWED_PREFIXES = (
     "/unit/", "/mechanics/", "/weapon/", "/gamemode/", "/ground",
     "/location/", "/map/", "/wiki/", "/collections"
