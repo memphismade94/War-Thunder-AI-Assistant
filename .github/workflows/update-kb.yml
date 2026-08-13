@@ -15,6 +15,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: warthog-kb-refresh
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -22,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -60,5 +66,6 @@ jobs:
             echo 'No knowledge changes detected.'
           else
             git commit -m 'Refresh official War Thunder knowledge base'
-            git push
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi
