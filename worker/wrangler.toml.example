@@ -7,8 +7,8 @@ GITHUB_OWNER = "memphismade94"
 GITHUB_REPO = "War-Thunder-AI-Assistant"
 GITHUB_BRANCH = "main"
 GITHUB_WORKFLOW = "update-kb.yml"
-PUBLIC_KB_URL = "https://YOUR_GITHUB_PAGES_HOST/site/kb.json"
-PUBLIC_MANIFEST_URL = "https://YOUR_GITHUB_PAGES_HOST/site/manifest.json"
+PUBLIC_KB_URL = "https://YOUR_GITHUB_PAGES_HOST/kb.json"
+PUBLIC_MANIFEST_URL = "https://YOUR_GITHUB_PAGES_HOST/manifest.json"
 
 # Set these with `wrangler secret put`, never commit them:
 # GEMINI_API_KEY
