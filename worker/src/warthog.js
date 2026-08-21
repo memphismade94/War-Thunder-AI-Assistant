@@ -175,10 +175,25 @@ async function refresh(env, req) {
   const workflow = env.GITHUB_WORKFLOW || 'update-kb.yml';
   const r = await fetch(`https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/actions/workflows/${workflow}/dispatches`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json', 'User-Agent': 'warthog-ground-rb-worker' },
     body: JSON.stringify({ ref: branch })
   });
-  return { ok: r.ok, message: r.ok ? 'Knowledge refresh requested.' : 'GitHub refused the refresh request.', status: r.status };
+  if (r.ok) return { ok: true, message: 'Knowledge refresh requested.', status: r.status, github_status: r.status };
+
+  let github_message = '';
+  try {
+    const body = await r.json();
+    github_message = String(body?.message || body?.error || '').slice(0, 500);
+  } catch {
+    try { github_message = (await r.text()).slice(0, 500); } catch { github_message = ''; }
+  }
+  return {
+    ok: false,
+    message: 'GitHub refused the refresh request.',
+    status: r.status,
+    github_status: r.status,
+    github_message: github_message || 'No GitHub error message returned.'
+  };
 }
 
 export default { async fetch(req, env) {
@@ -195,7 +210,10 @@ export default { async fetch(req, env) {
       const r = await fetch(env.PUBLIC_MANIFEST_URL, { cf: { cacheTtl: 60 } });
       return r.ok ? json(await r.json()) : json({ status: 'unavailable' });
     }
-    if (u.pathname === '/refresh' && req.method === 'POST') { const x = await refresh(env, req); return json({ ok: x.ok, message: x.message }, x.status || 200); }
+    if (u.pathname === '/refresh' && req.method === 'POST') {
+      const x = await refresh(env, req);
+      return json({ ok: x.ok, message: x.message, ...(x.github_status !== undefined ? { github_status: x.github_status } : {}), ...(x.github_message ? { github_message: x.github_message } : {}) }, x.status || 200);
+    }
     if (u.pathname === '/chat' && req.method === 'POST') {
       const body = await req.json();
       const kb = await loadKb(env);
