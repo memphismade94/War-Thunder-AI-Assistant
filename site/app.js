@@ -6,7 +6,7 @@ ids.forEach(id => { if (saved[id]) $(id).value = saved[id]; $(id).addEventListen
 function saveContext(){ const ctx={}; ids.forEach(id=>ctx[id]=$(id).value); localStorage.setItem("warthogContext",JSON.stringify(ctx)); }
 function context(){ const c={}; ids.forEach(id=>c[id]=$(id).value.trim()); return c; }
 async function status(){
-  try{ const r=await fetch(WORKER_URL+"/status"); const j=await r.json(); $("status").textContent=`Knowledge: ${j.status||"unknown"} • ${j.updated_at||"not yet generated"}`; }catch(e){$("status").textContent="Backend unavailable.";}
+  try{ const r=await fetch(WORKER_URL+"/status"); const j=await r.json(); $("status").textContent=`Knowledge: ${j.status||"current"} • ${j.updated_at||j.generated_at||"manifest available"}`; }catch(e){$("status").textContent="Backend unavailable.";}
 }
 function speak(text){ if(text && "speechSynthesis" in window){ speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(text)); } }
 async function ask(question){
@@ -23,7 +23,7 @@ async function ask(question){
 $("askBtn").onclick=()=>ask($("situation").value.trim()||"Give me the best tactical recommendation for my current situation.");
 document.querySelectorAll(".quick button").forEach(b=>b.onclick=()=>ask(b.dataset.q));
 $("speakBtn").onclick=()=>speak($("answer").textContent);
-$("updateBtn").onclick=async()=>{ $("status").textContent="Checking for knowledge updates…"; try{const r=await fetch(WORKER_URL+"/refresh",{method:"POST"});const j=await r.json();$("status").textContent=j.message||"Refresh requested.";}catch(e){$("status").textContent="Could not request refresh.";}};
+$("updateBtn").onclick=async()=>{ $("status").textContent="Checking published knowledge status…"; await status(); };
 
 // Voice-first input: use the browser's speech recognition when available. This avoids
 // sending browser-specific WebM recordings to Gemini; Google's current supported audio
