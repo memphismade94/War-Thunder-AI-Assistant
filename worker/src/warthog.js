@@ -68,16 +68,6 @@ function contextText(context) {
     .map(([k, v]) => `${k}: ${String(v).slice(0, 500)}`).join('\n') || 'No structured match context supplied.';
 }
 
-function evidence(results) {
-  let used = 0;
-  return results.map((x, i) => {
-    const block = `[${i + 1}] ${x.title}\n${String(x.text || '').slice(0, 6000)}\nSOURCE: ${x.source}`;
-    if (used + block.length > MAX_EVIDENCE_CHARS) return '';
-    used += block.length;
-    return block;
-  }).filter(Boolean).join('\n\n');
-}
-
 function executeTool(name, args, kb, context) {
   if (name === 'get_match_state') return { context };
   if (name === 'lookup_vehicle') {
@@ -118,7 +108,7 @@ async function askGemini(env, body, kb) {
   if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured on the Worker.');
   const context = body.context || {};
   const input = [{ type: 'user_input', content: [{ type: 'text', text:
-    `MATCH CONTEXT:\n${contextText(context)}\n\nPLAYER QUESTION:\n${String(body.question || 'Answer the spoken question using the supplied audio.').slice(0, 3000)}\n\nUse Warthog tools whenever a game-specific fact is needed. Put the action first.`
+    `MATCH CONTEXT:\n${Object.entries(context).filter(([, v]) => v).map(([k, v]) => `${k}: ${String(v).slice(0, 500)}`).join('\n') || 'No structured match context supplied.'}\n\nPLAYER QUESTION:\n${String(body.question || 'Answer the spoken question using the supplied audio.').slice(0, 3000)}\n\nUse Warthog tools whenever a game-specific fact is needed. Put the action first.`
   }] }];
   if (body.audio_base64) {
     const mime = (body.audio_mime_type || 'audio/mp3').split(';')[0].toLowerCase();
@@ -133,35 +123,17 @@ async function askGemini(env, body, kb) {
     const r = await fetch('https://generativelanguage.googleapis.com/v1/interactions', {
       method: 'POST',
       headers: { 'x-goog-api-key': env.GEMINI_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: MODEL,
-        store: false,
-        system_instruction: SYSTEM_PROMPT,
-        input: history,
-        tools: WARTHOG_TOOLS,
-        generation_config: { max_output_tokens: 600, thinking_level: 'low' }
-      })
+      body: JSON.stringify({ model: MODEL, store: false, system_instruction: SYSTEM_PROMPT, input: history, tools: WARTHOG_TOOLS, generation_config: { max_output_tokens: 600, thinking_level: 'low' } })
     });
     const interaction = await r.json();
     if (!r.ok) throw new Error(interaction?.error?.message || 'Gemini request failed');
     const calls = (interaction.steps || []).filter(s => s.type === 'function_call');
-    if (!calls.length) {
-      return {
-        answer: interaction.output_text || 'No answer returned.',
-        sources: sourceList(usedTools),
-        tool_rounds: round + 1
-      };
-    }
+    if (!calls.length) return { answer: interaction.output_text || 'No answer returned.', sources: sourceList(usedTools), tool_rounds: round + 1 };
     history = [...history, ...interaction.steps];
     for (const call of calls) {
       const result = executeTool(call.name, call.arguments || {}, kb, context);
       usedTools.push({ name: call.name, result });
-      history.push({
-        type: 'function_result',
-        name: call.name,
-        call_id: call.id,
-        result: [{ type: 'text', text: JSON.stringify(result) }]
-      });
+      history.push({ type: 'function_result', name: call.name, call_id: call.id, result: [{ type: 'text', text: JSON.stringify(result) }] });
     }
   }
   return { answer: 'I could not complete the tactical lookup in time. Try the question again.', sources: sourceList(usedTools), tool_rounds: MAX_TOOL_ROUNDS };
@@ -178,7 +150,7 @@ async function refresh(env, req) {
     headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json', 'User-Agent': 'warthog-ground-rb-worker' },
     body: JSON.stringify({ ref: branch })
   });
-  if (r.ok) return { ok: true, message: 'Knowledge refresh requested.', status: r.status, github_status: r.status };
+  if (r.ok) return { ok: true, message: 'Knowledge refresh requested.', status: 200, github_status: r.status };
 
   let github_message = '';
   try {
@@ -187,13 +159,7 @@ async function refresh(env, req) {
   } catch {
     try { github_message = (await r.text()).slice(0, 500); } catch { github_message = ''; }
   }
-  return {
-    ok: false,
-    message: 'GitHub refused the refresh request.',
-    status: r.status,
-    github_status: r.status,
-    github_message: github_message || 'No GitHub error message returned.'
-  };
+  return { ok: false, message: 'GitHub refused the refresh request.', status: r.status, github_status: r.status, github_message: github_message || 'No GitHub error message returned.' };
 }
 
 export default { async fetch(req, env) {
