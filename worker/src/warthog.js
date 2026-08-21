@@ -98,6 +98,18 @@ function sourceList(toolResults) {
   return [...unique.values()].slice(0, 8);
 }
 
+function interactionText(interaction) {
+  if (typeof interaction?.output_text === 'string' && interaction.output_text.trim()) return interaction.output_text.trim();
+  const texts = [];
+  for (const step of (interaction?.steps || [])) {
+    if (step?.type !== 'model_output') continue;
+    for (const item of (step.content || [])) {
+      if (item?.type === 'text' && typeof item.text === 'string' && item.text.trim()) texts.push(item.text.trim());
+    }
+  }
+  return texts.join('\n').trim();
+}
+
 async function loadKb(env) {
   if (!env.PUBLIC_KB_URL) return { chunks: [] };
   const r = await fetch(env.PUBLIC_KB_URL, { cf: { cacheTtl: 300 } });
@@ -128,7 +140,7 @@ async function askGemini(env, body, kb) {
     const interaction = await r.json();
     if (!r.ok) throw new Error(interaction?.error?.message || 'Gemini request failed');
     const calls = (interaction.steps || []).filter(s => s.type === 'function_call');
-    if (!calls.length) return { answer: interaction.output_text || 'No answer returned.', sources: sourceList(usedTools), tool_rounds: round + 1 };
+    if (!calls.length) return { answer: interactionText(interaction) || 'No answer returned.', sources: sourceList(usedTools), tool_rounds: round + 1 };
     history = [...history, ...interaction.steps];
     for (const call of calls) {
       const result = executeTool(call.name, call.arguments || {}, kb, context);
