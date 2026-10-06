@@ -1,8 +1,8 @@
 {
   "schema_version": 4,
-  "generated_at": "2026-10-06T00:33:48.088868+00:00",
+  "generated_at": "2026-10-06T06:56:24.607636+00:00",
   "pages": 2000,
-  "chunks": 3393,
+  "chunks": 3394,
   "failed_pages": 0,
   "sources_policy": "official-first",
   "crawler_version": "0.5",
